@@ -22,12 +22,12 @@ Three phases: **Installation → Frontend → Backend**. Details for setup are i
 ---
 ## Phase 2 · Frontend (Tailwind, mock data first)
 ### Foundation
-- [ ] Tailwind theme tokens (colors, type, spacing) from the mockups
-- [ ] Shared components: button, input, select, textarea, badge, card, modal, toast, tabs, pagination, skeleton, empty state, upload box
-- [ ] Layouts: guest navbar, member navbar, mobile bottom tabs, admin sidebar, footer
+- [x] Tailwind theme tokens (colors, type, spacing) from the mockups
+- [x] Shared components: button, input, select, textarea, badge, card, modal, toast, tabs, pagination, skeleton, empty state, upload box
+- [~] Layouts: guest navbar, member navbar, mobile bottom tabs, admin sidebar, footer (all except admin sidebar, which lands with D24–D31)
 ### Pages
-- [ ] Public: landing, browse, item detail (guest), how it works, legal (A1–A5)
-- [ ] Auth: sign-in, sign-up, onboarding, account status (B6–B9) with styled Clerk components
+- [x] Public: landing, browse, item detail (guest), how it works, legal (A1–A5)
+- [~] Auth: sign-in, sign-up, onboarding, recovery, account status (B6–B9) as custom mockup forms wired to Clerk headless hooks (`useSignIn`/`useSignUp`) — all five routes rendering and browser-verified at 1440/390; live email/password/2FA/reset steps cannot be exercised until **Email + Password** is enabled on the Clerk instance (it currently offers Google only)
 - [ ] Resident: dashboard, post item, edit item, my listings, item detail, make offer, offers, trade progress, messages, notifications, wishlist, public profile, settings, report (C10–C23)
 - [ ] Admin: dashboard, users, listings, trades, reports, categories, audit, settings (D24–D31)
 - [ ] System: 404, 403, 500, maintenance, offline, dialogs, empty states (E32–E33)

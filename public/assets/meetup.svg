@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 140" width="200" height="140" role="img" aria-label="Safe meetup illustration">
+  <rect width="200" height="140" fill="#f1ece4"/>
+  <g stroke="#8c857a" stroke-width="1.6" fill="none" stroke-linecap="round">
+    <path d="M28 106h144"/><path d="M46 106V64h44v42"/><path d="M46 64l22-16 22 16"/><path d="M60 106V82h16v24"/>
+    <path d="M104 106V74h50v32"/><path d="M104 74h50l-6-12h-38z"/>
+  </g>
+  <g fill="#c8452a"><circle cx="120" cy="90" r="3"/><circle cx="134" cy="90" r="3"/><circle cx="148" cy="90" r="3"/></g>
+  <path d="M100 30c0 8-8 14-8 14s-8-6-8-14a8 8 0 1 1 16 0z" fill="#16130f"/>
+</svg>

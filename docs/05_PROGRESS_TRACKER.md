@@ -1,7 +1,7 @@
 # 05 · Progress Tracker
 
 Legend: `[x]` done · `[ ]` not started · `[~]` in progress. Update weekly.
-**Overall progress:** Design ~85% · Backend 0% · Frontend 0% · QA 0% · Deploy 0%
+**Overall progress:** Design ~85% · Backend 0% · Frontend ~25% · QA 0% · Deploy 0%
 
 ## A. Planning and Documents
 - [x] System proposal written
@@ -23,9 +23,9 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress. Update weekly.
 | A3 | Item detail (guest) | [x] | [x] | "member since" vs "yrs" mismatch |
 | A4 | How it works | [x] | [x] | |
 | A5 | Terms and privacy | [x] | [x] | Mobile table to cards; legal review |
-| B6 | Register | [x] | [x] | Step tabs cut off |
-| B7 | Login | [x] | [x] | |
-| B8 | Recovery | [x] | [x] | |
+| B6 | Register | [x] | [x] | Headless `useSignUp`; live submit blocked on Clerk Email + Password |
+| B7 | Login | [x] | [x] | 2FA/mobile dialogs wired; strategies off |
+| B8 | Recovery | [x] | [x] | Custom panels; live reset blocked on Email + Password |
 | B9 | Account status | [x] | [x] | |
 | C10 | Dashboard | [x] | [x] | |
 | C11 | Post item | [x] | [x] | |
@@ -77,6 +77,7 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress. Update weekly.
 - [x] Packages installed
 - [x] Folder structure created
 - [x] Clerk app and keys (moved into `.env.local`; `.env.example` re-sanitized)
+- [ ] Clerk instance sign-in methods: enable **Email + Password** (10 §Clerk) — instance currently offers Google only, so B6/B7 render no email form and B8 (forgot/reset password, email verification) cannot be exercised
 - [x] Supabase project linked (CLI linked to `cainta_trade`, `db push` applied `001`–`003`)
 - [ ] Clerk enabled as Supabase third-party auth (confirm on first real sign-in)
 - [x] `middleware.ts` and `ClerkProvider`
@@ -87,10 +88,10 @@ Legend: `[x]` done · `[ ]` not started · `[~]` in progress. Update weekly.
 - [x] Migrations `001`–`003` written (pulled forward from 3.1 so `profiles` exists for the webhook)
 
 ## D. Phase 2 · Frontend
-- [ ] Tailwind tokens and shared components
-- [ ] Layouts (guest, member, mobile tabs, admin, footer)
-- [ ] Public pages A1–A5
-- [ ] Auth pages B6–B9
+- [x] Tailwind tokens and shared components (incl. shared modal `components/ui/dialog.tsx` and toast `components/ui/toast.tsx`)
+- [~] Layouts (guest navbar, member navbar, mobile tabs, footer done; admin sidebar pending with D24–D31)
+- [x] Public pages A1–A5
+- [~] Auth pages B6–B9 (custom mockup forms wired to headless Clerk hooks — B6/B7/B8/B9 + onboarding rendering and browser-verified at 1440/390, incl. validation, error, loading and dialog states; live email/password/2FA/reset steps blocked until **Email + Password** is enabled on the Clerk instance)
 - [ ] Resident pages C10–C23
 - [ ] Admin pages D24–D31
 - [ ] System pages and dialogs E32–E33

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-label="Member portrait">
+  <rect width="200" height="200" fill="#e6e9e3"/>
+  <circle cx="100" cy="78" r="33" fill="#a9714a"/>
+  <path d="M68 70c4-20 18-30 32-30s28 10 32 30c-8-6-18-9-32-9s-24 3-32 9z" fill="#1f1a15"/>
+  <path d="M100 116c32 0 56 22 56 50v34H44v-34c0-28 24-50 56-50z" fill="#4a4f5c"/>
+  <path d="M100 116c7 0 14 1 20 4l-7 20-13 9-13-9-7-20c6-3 13-4 20-4z" fill="#f7f4ef" opacity=".85"/>
+</svg>

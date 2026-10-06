@@ -42,19 +42,20 @@ Global states for every list/form: loading skeleton, empty, error (with referenc
 ## B · AUTH (Clerk + onboarding)
 
 ### B6 Register `/sign-up` then `/onboarding`
-- Step 1 (Clerk `<SignUp />`, styled with Tailwind appearance): full name, email, password (Clerk strength rules), email verification code
-- Step 2 (`/onboarding`, own form): mobile (+63), barangay, street/address, residency proof upload (JPG/PNG/PDF ≤5 MB to private bucket), consent checkboxes (Terms, Privacy RA 10173, optional email updates)
+- Step 1 (`components/auth/sign-up-form.tsx`, custom mockup form on headless `useSignUp()` — not Clerk-hosted): full name, email, mobile (+63), barangay (7 options), street/address, password with the mockup strength meter; interactive step tabs; details (never the password) carried to step 2 via `lib/register-draft.ts` (sessionStorage). `signUp.password()` submits the account draft
+- Step 2 (`/onboarding`): residency proof upload (JPG/PNG/PDF ≤5 MB to private bucket), consent checkboxes (Terms, Privacy RA 10173, optional email updates), RA 10173 brass notice. "Create my account" → `signUp.update` (consent + metadata) → `verifications.sendEmailCode()` → mockup verify-code dialog → `finalize()`
 - Data/Actions: Server Action `completeOnboarding` (zod validation, upload to `residency-docs/{clerkId}/...`, insert `residency_documents`, set profile `pending`)
-- States: field errors, upload progress, success, already-onboarded redirect
-- Notes: 18+ only; address shown to others only as "Barangay, Cainta"; the mockup's "Step 1 of 2" maps to Clerk sign-up then onboarding
+- States: field errors, loading skeleton panel, danger error panel, success panel, already-onboarded redirect
+- Notes: 18+ only; address shown to others only as "Barangay, Cainta"; the mockup's "Step 1 of 2" maps to `/sign-up` then `/onboarding`
 
 ### B7 Login `/sign-in`
-- Components: Clerk `<SignIn />` (email + password), forgot link, pending-approval hint, weekly stats panel, safety notes
-- Notes: admins use the same form; after sign-in redirect by profile status/role (`/home`, `/account-status`, `/admin`). Mobile-number sign-in and 2FA code are Clerk features (Tier 3 / plan check)
+- Components: custom mockup form `components/auth/sign-in-form.tsx` on headless `useSignIn()` (email + password, show-password toggle, keep-me-signed-in, forgot link → `/recovery`), pending-approval hint, weekly stats panel, safety notes
+- States: default / loading / error / code panels plus the two-factor dialog and mobile-login dialog, matching the mockup's `data-panel` variants
+- Notes: admins use the same form; after sign-in redirect by profile status/role (`/home`, `/account-status`, `/admin`). Mobile-number sign-in and 2FA are wired but need the strategies enabled on the Clerk instance (Tier 3 / plan check)
 
-### B8 Recovery (Clerk-hosted flows)
-- Forgot password, reset password and email verification are provided by Clerk components; restyle to match the mockups
-- Notes: Clerk does not reveal whether an email exists; email-verified success screen is a Clerk step plus a redirect to `/onboarding`
+### B8 Recovery `/recovery` (custom mockup panels, headless Clerk)
+- `components/auth/recovery-flow.tsx`: segmented Forgot / Reset / Email verified panels matching b8-recovery. Forgot → `signIn.create({identifier})` + `resetPasswordEmailCode.sendCode()`; Reset → `submitPassword()` when a live reset session exists, otherwise the mockup's expired-link notice with "Request a fresh link"
+- Notes: Clerk does not reveal whether an email exists; the end-to-end reset needs **Email + Password** enabled on the Clerk instance (10 §Clerk)
 
 ### B9 Account status `/account-status`
 - Variants: Pending approval (submitted time, what we received, 4-step progress, overdue badge after 24 h), Suspended (reason, appeal)

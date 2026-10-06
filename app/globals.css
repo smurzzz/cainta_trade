@@ -1,26 +1,180 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* =============================================================================
+   CaintaTrade — design tokens ("Warm Editorial Utility")
+   Extracted from mockup/styles.css :root. Mapped to the Tailwind v4 theme.
+   Breakpoint md is redefined to 700px to match the mockup's container query.
+   ============================================================================= */
+@theme {
+  /* color */
+  --color-paper: #f7f4ef;
+  --color-paper2: #f1ece4;
+  --color-surface: #ffffff;
+  --color-ink: #16130f;
+  --color-ink70: #5c554b;
+  --color-ink45: #6b6459;
+  --color-line: #e3ddd3;
+  --color-linestrong: #cfc7b9;
+  --color-accent: #c8452a;
+  --color-accentdeep: #a8361f;
+  --color-accenttint: #f7e7e1;
+  --color-olive: #4f6b4a;
+  --color-olivetint: #e8eee4;
+  --color-brass: #7d5e15;
+  --color-brasstint: #f6eede;
+  --color-danger: #9e2a1c;
+  --color-dangertint: #f8e6e3;
+
+  /* radii (mockup r-xs/sm/md/lg) */
+  --radius-xs: 2px;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  /* elevation */
+  --shadow-pop: 0 18px 40px -24px rgba(22, 19, 15, 0.38);
+
+  /* the mockup switches layout at a 700px container, not 768px */
+  --breakpoint-md: 700px;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-archivo);
+  --font-body: var(--font-inter);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-jetbrains);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ── base ──────────────────────────────────────────────────────────────── */
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+::selection {
+  background: var(--color-accenttint);
+}
+
+/* ── type scale (mockup .t-*) ──────────────────────────────────────────── */
+@utility t-hero {
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: clamp(40px, 5.4vw, 66px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  @media (max-width: 700px) {
+    font-size: 38px;
   }
 }
+@utility t-h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: clamp(30px, 3.4vw, 44px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  @media (max-width: 700px) {
+    font-size: 30px;
+  }
+}
+@utility t-h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 26px;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  @media (max-width: 700px) {
+    font-size: 22px;
+  }
+}
+@utility t-h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+@utility t-lead {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--color-ink70);
+  @media (max-width: 700px) {
+    font-size: 16.5px;
+  }
+}
+@utility t-body {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--color-ink70);
+}
+@utility t-small {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--color-ink70);
+}
+@utility t-meta {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--color-ink45);
+}
+@utility t-label {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink45);
+}
+@utility t-label-accent {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-accentdeep);
+}
+@utility t-label-ink {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink);
+}
+@utility t-num {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── layout primitives (mockup .wrap / .eyebrow) ───────────────────────── */
+@utility wrap {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+  padding-inline: 40px;
+  @media (max-width: 700px) {
+    padding-inline: 20px;
+  }
+}
+@utility eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  &::after {
+    content: "";
+    height: 1px;
+    background: var(--color-linestrong);
+    flex: 1;
+  }
 }

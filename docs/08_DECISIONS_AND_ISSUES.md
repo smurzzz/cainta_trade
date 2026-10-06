@@ -23,8 +23,8 @@
 | 6 | Mobile admin | Desktop-first; cards on mobile if required |
 | 7 | Proposal update | Add verification, offers, chat, ratings, moderation to scope |
 | 8 | Free-tier limits | Check Clerk, Supabase, Resend and Vercel plan limits against expected users |
-| 9 | Mockup "Step 1 of 2" register | Map to Clerk sign-up then onboarding |
-| 10 | Clerk-hosted screens | Style Clerk components with Tailwind appearance to match mockups |
+| 9 | Mockup "Step 1 of 2" register | Map to `/sign-up` then `/onboarding`; step-1 details (never the password) carried across the route split via `lib/register-draft.ts` (sessionStorage) |
+| 10 | Clerk-hosted screens | Resolved — user asked for exact-mockup auth screens, so B6/B7/B8 are custom forms wired to Clerk headless hooks (`useSignIn`/`useSignUp`); `lib/clerk-appearance.ts` removed as unreferenced |
 
 ## 2. Out-of-scope conflicts found in mockups
 - "Fair trade check" (valuation): remove

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160" role="img" aria-label="Empty state illustration">
+  <g fill="none" stroke="#8c857a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M40 62l40-18 40 18v46l-40 18-40-18z"/>
+    <path d="M40 62l40 18 40-18M80 80v46"/>
+    <path d="M62 52l40 18v14"/>
+  </g>
+  <path d="M118 116l14 14m0-14-14 14" stroke="#c8452a" stroke-width="2" stroke-linecap="round"/>
+</svg>
