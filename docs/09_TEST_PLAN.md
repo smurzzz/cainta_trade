@@ -1,6 +1,16 @@
 # 09 · Test Plan
 
+## Automation status (updated with Phase 3.15)
+| Layer | State |
+|---|---|
+| SQL rules + RLS (`supabase/migrations/999_test_assertions.sql`) | [x] runs on every `db push --include-all`; covers anon/pending/verified/other-user/moderator/admin, trade rules, wishlist limits, append-only audit |
+| Unit (vitest) | [x] 73 tests: 7 validator suites, catalog service (fake Supabase), `runCron` secret/dry-run/failure, notify preference gating + template dispatch, 9 email templates render, Clerk webhook (incl. T-A8 bad signature) |
+| Playwright (all green) | [x] `npm run test:e2e` → **36 passed, 0 skipped**: `e2e/public-catalog.spec.ts` (7) — live catalog/search/filters/detail/404/view dedupe/sign-in redirect (T-L7, T-A4 area); `e2e/security.spec.ts` (15) — cron 401s on all 6 routes, dry-run with secret, webhook unsigned/tampered → 400 (T-A8); `e2e/auth-and-trade.spec.ts` (14) — T-A1 sign-up (Testing Token captcha bypass + `+clerk_test` OTP 424242) with profile/residency-document rows asserted, T-A10 sign-out → wrong-password error panel → status-based landing, T-A4 route guards, T-A7 approve + T-R4 audit, T-L1/L2/L3/L4/L5 (publish, 9-photo cap, 80-char refusal, 403 edit, renew +30 d), full trade T-O1→T-O4 + T-O6/T-O7 + T-M1 send, T-O5 cancel after accept, T-O8 dispute, T-R1→T-R4 (anonymity, remove-cancels-trade, moderator 403, audit rows) — with teardown sweeps cleaning every test user/profile |
+| Realtime messaging (T-M1 live) | [ ] blocked on Supabase third-party auth; message actions themselves are unit-covered |
+| §8 usability / accessibility | [ ] manual |
+
 ## Test accounts
+Tests create and tear down their own Clerk users (`cte2e-*` emails, `E2E …` profiles); the manual accounts below are for exploratory testing.
 admin, moderator, resident_verified_A, resident_verified_B, resident_pending, resident_suspended.
 
 ## 1. Auth and residency (Clerk + onboarding)
@@ -15,6 +25,7 @@ admin, moderator, resident_verified_A, resident_verified_B, resident_pending, re
 | T-A7 | Approve | Verified, email sent, delete_after = +90 d |
 | T-A8 | Clerk webhook with bad signature | 400, no change |
 | T-A9 | Delete Clerk user | Profile marked deleted via webhook |
+| T-A10 | Sign out, then sign back in with email + password | Wrong password → error panel + attempt counter; correct password → pending `/account-status`, session restored, profile untouched |
 
 ## 2. Listings
 | T-L1 | Post with 3 photos | Live, expires +30 d |

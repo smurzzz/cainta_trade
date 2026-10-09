@@ -64,14 +64,16 @@ export function StrengthMeter({
   if (/[^A-Za-z0-9]/.test(v) && v.length >= 12) score++
 
   const words = [
-    'Too short — use at least 8 characters',
+    'Too short — use at least 15 characters',
     'Weak — add a number or a symbol',
     'Fair — mix in a capital letter',
     'Strong password',
   ]
   const label = v
-    ? words[Math.max(0, score - 1)]
-    : 'Use 12+ characters with a mix of letters and numbers.'
+    ? v.length < 15
+      ? words[0]
+      : words[Math.max(0, score - 1)]
+    : 'Use 15+ characters with a mix of letters and numbers.'
   const barColor = (i: number) =>
     i === 0 ? 'bg-danger' : i === 1 ? 'bg-brass' : 'bg-olive'
 

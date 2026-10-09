@@ -2,86 +2,23 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Icon } from "@/components/ui/icon";
-import { ItemCard, type ItemCardData } from "@/components/ui/item-card";
+import { ItemCard } from "@/components/ui/item-card";
 import { SectionHead } from "@/components/ui/card";
 import { TrustRow } from "@/components/ui/feedback";
 import { imgUrl } from "@/lib/mock/images";
+import { listItems } from "@/lib/queries/catalog";
 
-const FEATURED: ItemCardData[] = [
-  {
-    id: "sofa",
-    title: "Three-seater fabric sofa",
-    status: "Pending",
-    category: "Furniture",
-    barangay: "San Juan",
-    owner: "Marites",
-    ownerAvatar: "/assets/avatar-2.svg",
-    time: "2d ago",
-    lookingFor: "Dining table or rice cooker",
-    photo: imgUrl("green-fabric-sofa", 700),
-    photoLabel: "Fabric sofa",
-  },
-  {
-    id: "road-bike",
-    title: "Road bike, 26er",
-    status: "Available",
-    category: "Bicycles",
-    barangay: "San Roque",
-    owner: "Danny",
-    ownerAvatar: "/assets/avatar-1.svg",
-    time: "4d ago",
-    lookingFor: "Study desk or electric fan",
-    photo: imgUrl("road-bike", 700),
-    photoLabel: "Road bike",
-  },
-  {
-    id: "school-books",
-    title: "Grade 7 school books set",
-    status: "Available",
-    category: "Books & school",
-    barangay: "San Juan",
-    owner: "Marites",
-    ownerAvatar: "/assets/avatar-2.svg",
-    time: "6d ago",
-    lookingFor: "School bag or raincoat",
-    photo: imgUrl("color-books", 700),
-    photoLabel: "School books",
-  },
-  {
-    id: "accent-chair",
-    title: "Moulded plastic accent chair",
-    status: "Available",
-    category: "Furniture",
-    barangay: "San Juan",
-    owner: "Jomar",
-    ownerAvatar: "/assets/avatar-3.svg",
-    time: "1w ago",
-    lookingFor: "Study table or bookshelf",
-    photo: imgUrl("plastic-chair", 700),
-    photoLabel: "Accent chair",
-  },
-];
-
-const CATEGORIES = [
-  { icon: "home", name: "Furniture", n: 42 },
-  { icon: "box", name: "Appliances", n: 31 },
-  { icon: "camera", name: "Electronics", n: 18 },
-  { icon: "tag", name: "Books & school", n: 24 },
-  { icon: "swap", name: "Bicycles & parts", n: 12 },
-  { icon: "user", name: "Kids & toys", n: 19 },
-  { icon: "tools", name: "Tools & hardware", n: 9 },
-  { icon: "sparkle", name: "Plants & garden", n: 15 },
-];
-
-const BARANGAYS = [
-  ["San Andres (Poblacion)", "34 items"],
-  ["San Isidro", "21 items"],
-  ["San Juan", "18 items"],
-  ["San Roque", "16 items"],
-  ["Santa Rosa", "14 items"],
-  ["Santo Domingo", "13 items"],
-  ["Santo Niño", "12 items"],
-];
+/** Landing-page icon per seeded top-level category (docs/03 · 3.15 wiring). */
+const CATEGORY_ICONS: Record<string, string> = {
+  Furniture: "home",
+  Appliances: "box",
+  Kitchenware: "tools",
+  Electronics: "camera",
+  "Books & school": "tag",
+  "Bicycles & parts": "swap",
+  Clothing: "user",
+  "Plants & garden": "sparkle",
+};
 
 const STEPS = [
   {
@@ -119,7 +56,21 @@ const SPOTS = [
   ["Sta. Lucia Mall activity area", "San Roque · meet near the main entrance"],
 ];
 
-export default function LandingPage() {
+/** Statically rendered, but refreshed every minute so the live counts and
+ *  featured listings never go stale between deploys (docs/03 3.15). */
+export const revalidate = 60;
+
+export default async function LandingPage() {
+  // Real catalog: newest listings, live category/barangay facet counts, total.
+  const catalog = await listItems({ pageSize: 4 });
+  const FEATURED = catalog.items;
+  const CATEGORIES = catalog.facets.categories.map((c) => ({
+    icon: CATEGORY_ICONS[c.label] ?? "box",
+    name: c.label,
+    n: c.n,
+  }));
+  const BARANGAYS = catalog.facets.barangays.map((b) => [b.label, `${b.n} items`] as [string, string]);
+
   return (
     <>
       {/* ── Hero ─────────────────────────────────────────────────────── */}
@@ -256,9 +207,9 @@ export default function LandingPage() {
             label="New this week"
             title="Featured in your barangay"
             aside={
-              <Link href="/browse" className="inline-flex items-center gap-2 font-mono text-[12.5px] hover:text-accent hover:gap-3 transition-all">
-                Browse all 128 items <Icon name="arrow" size={16} />
-              </Link>
+            <Link href="/browse" className="inline-flex items-center gap-2 font-mono text-[12.5px] hover:text-accent hover:gap-3 transition-all">
+              Browse all {catalog.total} items <Icon name="arrow" size={16} />
+            </Link>
             }
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">

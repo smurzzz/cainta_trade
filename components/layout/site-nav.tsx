@@ -123,7 +123,7 @@ export function SiteNav({ variant = 'guest', notifications = 3 }: { variant?: Va
                 </button>
                 {open ? (
                   <div className="absolute top-full right-0 mt-2 min-w-[212px] bg-surface border border-line rounded-md shadow-pop p-1.5 z-70">
-                    <Link href="/members/marites" className="flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-[14.5px] text-ink70 hover:bg-paper2 hover:text-ink" onClick={() => setOpen(false)}>
+                    <Link href={`/members/${user?.id ?? ''}`} className="flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-[14.5px] text-ink70 hover:bg-paper2 hover:text-ink" onClick={() => setOpen(false)}>
                       <Icon name="user" size={16} /> Profile
                     </Link>
                     <Link href="/settings" className="flex items-center gap-2.5 px-3 py-2.5 rounded-sm text-[14.5px] text-ink70 hover:bg-paper2 hover:text-ink" onClick={() => setOpen(false)}>

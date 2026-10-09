@@ -12,7 +12,7 @@ export function PhotoFrame({
   sizes = "(max-width: 700px) 50vw, 320px",
   priority = false,
 }: {
-  src?: string;
+  src?: string | null;
   alt: string;
   label?: string;
   aspect?: string;
@@ -46,7 +46,7 @@ export type ItemCardData = {
   ownerAvatar?: string;
   time?: string;
   lookingFor?: string;
-  photo?: string;
+  photo?: string | null;
   photoLabel?: string;
   saveCount?: number;
 };

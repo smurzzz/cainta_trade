@@ -55,7 +55,7 @@ Global states for every list/form: loading skeleton, empty, error (with referenc
 
 ### B8 Recovery `/recovery` (custom mockup panels, headless Clerk)
 - `components/auth/recovery-flow.tsx`: segmented Forgot / Reset / Email verified panels matching b8-recovery. Forgot → `signIn.create({identifier})` + `resetPasswordEmailCode.sendCode()`; Reset → `submitPassword()` when a live reset session exists, otherwise the mockup's expired-link notice with "Request a fresh link"
-- Notes: Clerk does not reveal whether an email exists; the end-to-end reset needs **Email + Password** enabled on the Clerk instance (10 §Clerk)
+- Notes: Clerk does not reveal whether an email exists; **Email + Password is now enabled** on the Clerk instance (10 §Clerk), so the end-to-end reset can run — it still has no automated spec
 
 ### B9 Account status `/account-status`
 - Variants: Pending approval (submitted time, what we received, 4-step progress, overdue badge after 24 h), Suspended (reason, appeal)

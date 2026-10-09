@@ -1,20 +1,13 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { Icon } from '@/components/ui/icon'
 import { ItemCard } from '@/components/ui/item-card'
 import { Pagination } from '@/components/ui/pagination'
 import { Chip } from '@/components/ui/badge'
-import {
-  BARANGAY_FACETS,
-  CATEGORY_FACETS,
-  CONDITION_FACETS,
-  ITEMS,
-  toCard,
-} from '@/lib/mock/data'
-
-const CONDITIONS = ['Like new', 'Good', 'Fair', 'For repair']
+import type { ListItemsResult } from '@/lib/queries/catalog'
 
 function FacetGroup({
   title,
@@ -40,36 +33,84 @@ function FacetGroup({
   )
 }
 
-/** Browse screen (mockup a2): filter bar, facet sidebar, results grid. */
-export function BrowseScreen() {
-  const [q, setQ] = useState('')
-  const [cat, setCat] = useState<string | null>(null)
-  const [brgy, setBrgy] = useState<string | null>(null)
-  const [condition, setCondition] = useState<string | null>(null)
-  const [showExchanged, setShowExchanged] = useState(false)
+const SORT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'views', label: 'Most viewed' },
+  { value: 'saves', label: 'Most saved' },
+]
+
+/** Browse screen (mockup a2) backed by real catalog queries (docs/03 3.15).
+ *  The URL is the source of truth: every control patches the query string and
+ *  the server re-renders results + facets; the search box debounces. */
+export function BrowseScreen({ initial }: { initial: ListItemsResult }) {
+  const router = useRouter()
+  const applied = initial.applied
+  const searchRef = useRef(paramsFrom(applied).toString())
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
   const [sheet, setSheet] = useState(false)
 
-  const results = useMemo(() => {
-    const needle = q.trim().toLowerCase()
-    return ITEMS.filter((i) => {
-      if (!showExchanged && i.status === 'Exchanged') return false
-      if (cat && i.catKey !== cat) return false
-      if (brgy && i.brgyKey !== brgy) return false
-      if (condition && i.condition !== condition) return false
-      if (needle) {
-        const hay = `${i.title} ${i.category} ${i.barangay} ${i.description}`.toLowerCase()
-        if (!hay.includes(needle)) return false
-      }
-      return true
-    })
-  }, [q, cat, brgy, condition, showExchanged])
+  // keep the cached query string in step with the server echo after each
+  // navigation (push() writes it optimistically for back-to-back patches)
+  const echoedQs = paramsFrom(applied).toString()
+  useEffect(() => {
+    searchRef.current = echoedQs
+  }, [echoedQs])
 
-  const clearAll = () => {
-    setQ('')
-    setCat(null)
-    setBrgy(null)
-    setCondition(null)
-    setShowExchanged(false)
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    },
+    [],
+  )
+
+  function paramsFrom(a: ListItemsResult['applied']) {
+    const params = new URLSearchParams()
+    if (a.q) params.set('q', a.q)
+    if (a.category) params.set('category', a.category)
+    if (a.barangay) params.set('barangay', a.barangay)
+    if (a.condition) params.set('condition', a.condition)
+    if (a.includeExchanged) params.set('exchanged', '1')
+    if (a.since) params.set('since', a.since)
+    if (a.sort !== 'newest') params.set('sort', a.sort)
+    if (a.page > 1) params.set('page', String(a.page))
+    return params
+  }
+
+  /** Patch the URL (null deletes a param). Filter changes reset to page 1. */
+  function push(patch: Record<string, string | null>, opts: { scroll?: boolean } = {}) {
+    const params = new URLSearchParams(searchRef.current)
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) params.set(key, value)
+      else params.delete(key)
+    }
+    if (!('page' in patch)) params.delete('page')
+    const qs = params.toString()
+    searchRef.current = qs
+    router.replace(qs ? `/browse?${qs}` : '/browse', { scroll: opts.scroll ?? false })
+  }
+
+  function scheduleSearch(value: string) {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => {
+      const v = value.trim()
+      const current = new URLSearchParams(searchRef.current).get('q') ?? ''
+      if (v !== current) push({ q: v || null })
+    }, 350)
+  }
+
+  function clearAll() {
+    if (timerRef.current) clearTimeout(timerRef.current)
+    if (inputRef.current) inputRef.current.value = ''
+    push({
+      q: null,
+      category: null,
+      barangay: null,
+      condition: null,
+      exchanged: null,
+      since: null,
+      sort: null,
+    })
   }
 
   const facetBtn = (active: boolean) =>
@@ -77,13 +118,19 @@ export function BrowseScreen() {
       active ? 'text-ink font-medium' : 'text-ink70 hover:text-ink'
     }`
 
+  const popularCats = initial.facets.categories.slice(0, 3)
+  const popularBrgy =
+    initial.facets.barangays.find((b) => b.key === 'san-andres') ?? initial.facets.barangays[0]
+
   return (
     <>
       {/* header band */}
       <section className="bg-paper2 border-b border-line py-9">
         <div className="wrap">
           <div className="eyebrow">
-            <span className="t-label-accent">128 items across 7 barangays</span>
+            <span className="t-label-accent">
+              {initial.total} items across {initial.facets.barangays.length} barangays
+            </span>
           </div>
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div>
@@ -109,9 +156,10 @@ export function BrowseScreen() {
           <div className="flex flex-wrap gap-3">
             <label className="relative block flex-1" style={{ minWidth: 240 }}>
               <input
+                ref={inputRef}
                 type="search"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
+                defaultValue={applied.q}
+                onChange={(e) => scheduleSearch(e.target.value)}
                 placeholder="Search items — sofa, fan, bike…"
                 aria-label="Search items"
                 className="w-full min-h-[48px] py-3 pl-3.5 pr-11 bg-surface border border-linestrong rounded-sm text-[15.5px] text-ink placeholder:text-ink45 hover:border-ink45 focus:outline-none focus:border-ink focus:shadow-[0_0_0_3px_rgba(200,69,42,.18)]"
@@ -122,12 +170,12 @@ export function BrowseScreen() {
             </label>
             <select
               aria-label="Category"
-              value={cat ?? ''}
-              onChange={(e) => setCat(e.target.value || null)}
+              value={applied.category ?? ''}
+              onChange={(e) => push({ category: e.target.value || null })}
               className="min-h-[48px] px-3.5 py-3 bg-surface border border-linestrong rounded-sm text-[15.5px] text-ink appearance-none bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2214%22 height=%2214%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%235c554b%22 stroke-width=%222%22%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E')] bg-[length:14px] bg-[right_14px_center] bg-no-repeat pr-10 max-w-[190px]"
             >
               <option value="">All categories</option>
-              {CATEGORY_FACETS.map((c) => (
+              {initial.facets.categories.map((c) => (
                 <option key={c.key} value={c.key}>
                   {c.label}
                 </option>
@@ -135,25 +183,25 @@ export function BrowseScreen() {
             </select>
             <select
               aria-label="Condition"
-              value={condition ?? ''}
-              onChange={(e) => setCondition(e.target.value || null)}
+              value={applied.condition ?? ''}
+              onChange={(e) => push({ condition: e.target.value || null })}
               className="min-h-[48px] px-3.5 py-3 bg-surface border border-linestrong rounded-sm text-[15.5px] text-ink appearance-none bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2214%22 height=%2214%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%235c554b%22 stroke-width=%222%22%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E')] bg-[length:14px] bg-[right_14px_center] bg-no-repeat pr-10 max-w-[170px]"
             >
               <option value="">Any condition</option>
-              {CONDITIONS.map((c) => (
-                <option key={c} value={c}>
-                  {c}
+              {initial.facets.conditions.map((c) => (
+                <option key={c.key} value={c.key}>
+                  {c.label}
                 </option>
               ))}
             </select>
             <select
               aria-label="Barangay"
-              value={brgy ?? ''}
-              onChange={(e) => setBrgy(e.target.value || null)}
+              value={applied.barangay ?? ''}
+              onChange={(e) => push({ barangay: e.target.value || null })}
               className="min-h-[48px] px-3.5 py-3 bg-surface border border-linestrong rounded-sm text-[15.5px] text-ink appearance-none bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2214%22 height=%2214%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%235c554b%22 stroke-width=%222%22%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E')] bg-[length:14px] bg-[right_14px_center] bg-no-repeat pr-10 max-w-[180px]"
             >
               <option value="">All barangays</option>
-              {BARANGAY_FACETS.map((b) => (
+              {initial.facets.barangays.map((b) => (
                 <option key={b.key} value={b.key}>
                   {b.label}
                 </option>
@@ -170,26 +218,29 @@ export function BrowseScreen() {
           </div>
           <div className="flex flex-wrap items-center gap-2 mt-3">
             <span className="t-label mr-1">Popular</span>
-            <button type="button" onClick={() => setCat(cat === 'furniture' ? null : 'furniture')}>
-              <Chip on={cat === 'furniture'}>
-                Furniture <span className="font-mono text-[10.5px] text-ink45">21</span>
-              </Chip>
-            </button>
-            <button type="button" onClick={() => setCat(cat === 'kitchenware' ? null : 'kitchenware')}>
-              <Chip on={cat === 'kitchenware'}>
-                Kitchenware <span className="font-mono text-[10.5px] text-ink45">14</span>
-              </Chip>
-            </button>
-            <button type="button" onClick={() => setCat(cat === 'bicycles' ? null : 'bicycles')}>
-              <Chip on={cat === 'bicycles'}>
-                Bicycles <span className="font-mono text-[10.5px] text-ink45">7</span>
-              </Chip>
-            </button>
-            <button type="button" onClick={() => setBrgy(brgy === 'san-andres' ? null : 'san-andres')}>
-              <Chip on={brgy === 'san-andres'}>
-                San Andres <span className="font-mono text-[10.5px] text-ink45">34</span>
-              </Chip>
-            </button>
+            {popularCats.map((c) => (
+              <button
+                key={c.key}
+                type="button"
+                onClick={() => push({ category: applied.category === c.key ? null : c.key })}
+              >
+                <Chip on={applied.category === c.key}>
+                  {c.label}{' '}
+                  <span className="font-mono text-[10.5px] text-ink45">{c.n}</span>
+                </Chip>
+              </button>
+            ))}
+            {popularBrgy ? (
+              <button
+                type="button"
+                onClick={() => push({ barangay: applied.barangay === popularBrgy.key ? null : popularBrgy.key })}
+              >
+                <Chip on={applied.barangay === popularBrgy.key}>
+                  {popularBrgy.label}{' '}
+                  <span className="font-mono text-[10.5px] text-ink45">{popularBrgy.n}</span>
+                </Chip>
+              </button>
+            ) : null}
           </div>
         </div>
 
@@ -199,39 +250,39 @@ export function BrowseScreen() {
             aria-label="Filters"
             className="border-line max-md:border-b max-md:pb-2 md:border-r md:pr-[26px]"
           >
-            <FacetGroup title="Category" onClear={() => setCat(null)}>
-              {CATEGORY_FACETS.map((c) => (
+            <FacetGroup title="Category" onClear={() => push({ category: null })}>
+              {initial.facets.categories.map((c) => (
                 <button
                   key={c.key}
                   type="button"
-                  onClick={() => setCat(cat === c.key ? null : c.key)}
-                  className={facetBtn(cat === c.key)}
+                  onClick={() => push({ category: applied.category === c.key ? null : c.key })}
+                  className={facetBtn(applied.category === c.key)}
                 >
                   <span>{c.label}</span>
                   <span className="font-mono text-[10.5px] text-ink45">{c.n}</span>
                 </button>
               ))}
             </FacetGroup>
-            <FacetGroup title="Condition" onClear={() => setCondition(null)}>
-              {CONDITION_FACETS.map((c) => (
+            <FacetGroup title="Condition" onClear={() => push({ condition: null })}>
+              {initial.facets.conditions.map((c) => (
                 <button
                   key={c.key}
                   type="button"
-                  onClick={() => setCondition(condition === c.label ? null : c.label)}
-                  className={facetBtn(condition === c.label)}
+                  onClick={() => push({ condition: applied.condition === c.key ? null : c.key })}
+                  className={facetBtn(applied.condition === c.key)}
                 >
                   <span>{c.label}</span>
                   <span className="font-mono text-[10.5px] text-ink45">{c.n}</span>
                 </button>
               ))}
             </FacetGroup>
-            <FacetGroup title="Barangay" onClear={() => setBrgy(null)}>
-              {BARANGAY_FACETS.map((b) => (
+            <FacetGroup title="Barangay" onClear={() => push({ barangay: null })}>
+              {initial.facets.barangays.map((b) => (
                 <button
                   key={b.key}
                   type="button"
-                  onClick={() => setBrgy(brgy === b.key ? null : b.key)}
-                  className={facetBtn(brgy === b.key)}
+                  onClick={() => push({ barangay: applied.barangay === b.key ? null : b.key })}
+                  className={facetBtn(applied.barangay === b.key)}
                 >
                   <span>{b.label}</span>
                   <span className="font-mono text-[10.5px] text-ink45">{b.n}</span>
@@ -241,11 +292,11 @@ export function BrowseScreen() {
             <FacetGroup title="Status">
               <button
                 type="button"
-                onClick={() => setShowExchanged(!showExchanged)}
-                className={facetBtn(showExchanged)}
+                onClick={() => push({ exchanged: applied.includeExchanged ? null : '1' })}
+                className={facetBtn(applied.includeExchanged)}
               >
                 <span>Show exchanged too</span>
-                <span className="font-mono text-[10.5px] text-ink45">84</span>
+                <span className="font-mono text-[10.5px] text-ink45">{initial.facets.exchanged}</span>
               </button>
             </FacetGroup>
             <div className="border border-line rounded-md bg-paper2 p-6 mt-4">
@@ -260,18 +311,23 @@ export function BrowseScreen() {
           <div>
             <div className="flex flex-wrap items-center justify-between gap-4 py-4 border-b border-line mb-6">
               <span className="t-small">
-                Showing <b className="text-ink font-semibold">{results.length}</b> of 128 items{' '}
-                <span className="text-ink45">· newest first</span>
+                Showing <b className="text-ink font-semibold">{initial.items.length}</b> of{' '}
+                {initial.total} items <span className="text-ink45">· newest first</span>
               </span>
               <div className="flex items-center gap-3">
                 <select
                   aria-label="Sort by"
+                  value={applied.sort}
+                  onChange={(e) =>
+                    push({ sort: e.target.value === 'newest' ? null : e.target.value }, { scroll: false })
+                  }
                   className="min-h-[40px] px-3 py-2 bg-surface border border-linestrong rounded-sm text-sm text-ink appearance-none bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2214%22 height=%2214%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%235c554b%22 stroke-width=%222%22%3E%3Cpath d=%22M6 9l6 6 6-6%22/%3E%3C/svg%3E')] bg-[length:14px] bg-[right_14px_center] bg-no-repeat pr-10 max-w-[190px]"
                 >
-                  <option>Newest first</option>
-                  <option>Nearest barangay</option>
-                  <option>Recently updated</option>
-                  <option>Most relevant</option>
+                  {SORT_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
                 </select>
                 <div className="flex border border-linestrong rounded-sm overflow-hidden" role="group" aria-label="Layout">
                   <span className="w-10 h-[38px] inline-flex items-center justify-center bg-ink text-paper" aria-label="Grid view">
@@ -284,15 +340,21 @@ export function BrowseScreen() {
               </div>
             </div>
 
-            {results.length ? (
+            {initial.items.length ? (
               <>
                 <div className="grid gap-6 [grid-template-columns:repeat(auto-fill,minmax(240px,1fr))]">
-                  {results.map((item) => (
-                    <ItemCard key={item.id} item={toCard(item)} />
+                  {initial.items.map((item) => (
+                    <ItemCard key={item.id} item={item} />
                   ))}
                 </div>
-                <Pagination page={1} total={3} />
-                <div className="t-meta text-center mt-3">Page 1 of 11 · 12 items per page</div>
+                <Pagination
+                  page={initial.page}
+                  total={initial.pageCount}
+                  onSelect={(p) => push({ page: p > 1 ? String(p) : null }, { scroll: true })}
+                />
+                <div className="t-meta text-center mt-3">
+                  Page {initial.page} of {initial.pageCount} · {initial.pageSize} items per page
+                </div>
               </>
             ) : (
               <div className="text-center py-16 px-6 border border-dashed border-linestrong rounded-md bg-surface">
@@ -318,9 +380,9 @@ export function BrowseScreen() {
             <div className="flex flex-wrap items-center gap-3 px-4 py-3 border border-dashed border-linestrong rounded-sm text-sm text-ink70 mt-8">
               <Icon name="bell" size={18} className="flex-none" />
               <span className="flex-1 min-w-0">
-                Want alerts when a neighbour posts a <b className="font-medium text-ink">rice cooker</b>{' '}
-                in <b className="font-medium text-ink">San Andres</b>? Saved searches are available
-                to signed-in members.
+                Want to know the moment a neighbour posts a <b className="font-medium text-ink">rice cooker</b>{' '}
+                in <b className="font-medium text-ink">San Andres</b>? Save items to your wishlist
+                and turn on offer notifications.
               </span>
               <ButtonLink href="/sign-up" variant="secondary" size="sm">
                 Create an account
@@ -342,7 +404,7 @@ export function BrowseScreen() {
                 <div className="t-h3" id="sheet-title">
                   More filters
                 </div>
-                <p className="t-small mt-1">Narrow by condition, status and distance from your barangay.</p>
+                <p className="t-small mt-1">Narrow by condition and how recently the item was posted.</p>
               </div>
               <button type="button" onClick={() => setSheet(false)} aria-label="Close" className="w-10 h-10 rounded-full inline-flex items-center justify-center hover:bg-paper2">
                 <Icon name="x" size={18} />
@@ -351,35 +413,41 @@ export function BrowseScreen() {
             <div className="px-[22px] pt-3.5 pb-5">
               <div className="mb-5">
                 <span className="font-mono text-[12.5px] tracking-[0.02em] block mb-2">Condition</span>
-                <div className="flex flex-wrap gap-2">
-                  {CONDITIONS.map((c) => (
-                    <button key={c} type="button" onClick={() => setCondition(condition === c ? null : c)}>
-                      <Chip on={condition === c}>{c}</Chip>
+                <div className="flex flex-wrap gap-2.5">
+                  {initial.facets.conditions.map((c) => (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => push({ condition: applied.condition === c.key ? null : c.key })}
+                    >
+                      <Chip on={applied.condition === c.key}>{c.label}</Chip>
                     </button>
                   ))}
                 </div>
               </div>
-              {[
-                { label: 'Distance', opts: ['Same barangay', 'Adjacent barangay', 'Anywhere in Cainta'], on: 2 },
-                { label: 'Posted', opts: ['Last 24 hours', 'Last 7 days', 'Any time'], on: 1 },
-              ].map((group) => (
-                <div key={group.label} className="mb-5 last:mb-0">
-                  <span className="font-mono text-[12.5px] tracking-[0.02em] block mb-2">{group.label}</span>
-                  <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2.5">
-                    {group.opts.map((o, i) => (
-                      <span
-                        key={o}
-                        className={`border rounded-sm px-3.5 py-3.5 text-sm flex items-center gap-2.5 bg-surface ${
-                          i === group.on ? 'border-ink bg-paper2' : 'border-linestrong'
-                        }`}
+              <div className="mb-5 last:mb-0">
+                <span className="font-mono text-[12.5px] tracking-[0.02em] block mb-2">Posted</span>
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-2.5">
+                  {[
+                    { label: 'Last 24 hours', value: 'day' },
+                    { label: 'Last 7 days', value: 'week' },
+                    { label: 'Any time', value: '' },
+                  ].map((o) => {
+                    const on = (applied.since ?? '') === o.value
+                    return (
+                      <button
+                        key={o.label}
+                        type="button"
+                        onClick={() => push({ since: o.value || null })}
+                        className={`border rounded-sm px-3.5 py-3.5 text-sm flex items-center gap-2.5 bg-surface text-left ${on ? 'border-ink bg-paper2' : 'border-linestrong'}`}
                       >
-                        <span className={`w-5 h-5 rounded-full border flex-none ${i === group.on ? 'border-[5px] border-ink bg-surface' : 'border-linestrong'}`} />
-                        {o}
-                      </span>
-                    ))}
-                  </div>
+                        <span className={`w-5 h-5 rounded-full border flex-none ${on ? 'border-[5px] border-ink bg-surface' : 'border-linestrong'}`} />
+                        {o.label}
+                      </button>
+                    )
+                  })}
                 </div>
-              ))}
+              </div>
             </div>
             <div className="flex justify-end gap-2.5 px-[22px] py-4 bg-paper border-t border-line">
               <Button variant="ghost" onClick={() => setSheet(false)}>

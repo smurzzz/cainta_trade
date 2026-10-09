@@ -16,6 +16,9 @@
 /playwright-report
 /blob-report
 /playwright/.cache
+# transient E2E runtime files (Clerk testing token + local server log)
+.e2e-clerk-env.json
+.server.log
 
 # next.js
 /.next/

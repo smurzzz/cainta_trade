@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { useSignIn } from '@clerk/nextjs'
+import { resolvePostAuthPath } from '@/actions/profile'
 import { Button } from '@/components/ui/button'
 import { Check, Field, Input } from '@/components/ui/field'
 import { PasswordField, PhoneField, CodeInput } from '@/components/ui/auth-fields'
@@ -42,6 +43,13 @@ export function SignInForm() {
     show(message, kind)
   }
 
+  /** docs/02 B7 — land by profile status/role (pending → /account-status,
+   *  staff → /admin, verified resident → /home) instead of always /home. */
+  async function landAfterSignIn(): Promise<void> {
+    const res = await resolvePostAuthPath()
+    router.push(res.ok && res.data ? res.data : '/')
+  }
+
   async function verifySecondFactor(code: string): Promise<boolean> {
     if (!signIn) return false
     const factors = signIn.supportedSecondFactors ?? []
@@ -55,7 +63,7 @@ export function SignInForm() {
     }
     if (signIn.status === 'complete') {
       await signIn.finalize()
-      router.push('/home')
+      await landAfterSignIn()
       return true
     }
     return false
@@ -76,7 +84,7 @@ export function SignInForm() {
     setGlobalMsg(null)
     if (signIn.status === 'complete') {
       await signIn.finalize()
-      router.push('/home')
+      await landAfterSignIn()
       return
     }
     if (signIn.status === 'needs_second_factor') {
@@ -119,7 +127,7 @@ export function SignInForm() {
     if (signIn.status === 'complete') {
       await signIn.finalize()
       setDialog(null)
-      router.push('/home')
+      await landAfterSignIn()
     }
   }
 

@@ -5,20 +5,28 @@ import { ButtonLink } from '@/components/ui/button'
 import { Dialog } from '@/components/ui/dialog'
 import { Icon } from '@/components/ui/icon'
 
-/** Guest gate panel: one primary action, two gate dialogs (mockup a3 right rail). */
-export function GuestGate() {
+/** Guest gate panel: one primary action, two gate dialogs (mockup a3 right rail).
+ *  Copy adapts to the listing status (docs/03 3.15 — no mock assumptions). */
+export function GuestGate({ status = 'available' }: { status?: string }) {
   const [saveOpen, setSaveOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
+
+  const headline =
+    status === 'pending' || status === 'exchanged'
+      ? 'Log in to save or follow this trade'
+      : 'Log in to save or offer on this item'
+  const blurb =
+    status === 'pending'
+      ? 'This listing already has an accepted offer, so new offers are closed until the trade completes or is cancelled. Log in to save it, message the owner about similar items, or report a problem.'
+      : status === 'exchanged'
+        ? 'This item has already been exchanged. Log in to save the member, browse similar items, or report a problem.'
+        : 'Log in to save this item, make an offer when you are a verified resident, and message the owner inside the platform. You can also report a problem with the listing.'
 
   return (
     <>
       <div className="border border-line rounded-md bg-surface p-6">
-        <div className="t-h3 mb-2">Log in to save or follow this trade</div>
-        <p className="t-small">
-          This listing already has an accepted offer, so new offers are closed until the trade
-          completes or is cancelled. Log in to save it, message the owner about similar items, or
-          report a problem.
-        </p>
+        <div className="t-h3 mb-2">{headline}</div>
+        <p className="t-small">{blurb}</p>
         <ButtonLink href="/sign-in" block className="mt-5">
           Log in to save
         </ButtonLink>

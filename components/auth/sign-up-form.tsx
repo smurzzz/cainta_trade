@@ -79,7 +79,7 @@ export function SignUpForm() {
       e.mobile = 'Enter the 10 digits after +63 (for example 917 448 2210).'
     if (!form.barangay) e.barangay = 'Please choose the barangay you live in.'
     if (!form.street.trim()) e.street = 'Please enter your street or address.'
-    if (form.password.length < 8) e.password = 'Use at least 8 characters.'
+    if (form.password.length < 15) e.password = 'Use at least 15 characters.'
     return e
   }
 

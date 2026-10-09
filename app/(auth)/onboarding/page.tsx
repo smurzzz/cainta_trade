@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSignUp } from '@clerk/nextjs'
+import { useAuth, useSignUp } from '@clerk/nextjs'
 import { Button, ButtonLink } from '@/components/ui/button'
 import { Field } from '@/components/ui/field'
 import { CodeInput } from '@/components/ui/auth-fields'
@@ -11,6 +11,8 @@ import { Dialog } from '@/components/ui/dialog'
 import { Notice, Skeleton } from '@/components/ui/feedback'
 import { Icon } from '@/components/ui/icon'
 import { Toast, useToast } from '@/components/ui/toast'
+import { useSupabaseClient } from '@/lib/supabase/browser'
+import { completeOnboarding } from '@/actions/onboarding'
 import { loadDraft } from '@/lib/register-draft'
 
 type Phase = 'form' | 'loading' | 'error'
@@ -75,11 +77,14 @@ const SIDE = {
  *  email verification via the mockup's olive dialog (headless Clerk, docs/08 #10). */
 export default function OnboardingPage() {
   const router = useRouter()
+  const { userId } = useAuth()
   const { signUp, errors } = useSignUp()
   const { toast, show } = useToast()
+  const supabase = useSupabaseClient()
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [fileName, setFileName] = useState<string | null>(null)
+  const [file, setFile] = useState<File | null>(null)
   const [checks, setChecks] = useState<boolean[]>([false, false, false, false])
   const [submitted, setSubmitted] = useState(false)
 
@@ -93,6 +98,37 @@ export default function OnboardingPage() {
 
   const requiredOk = CONSENTS.every((c, i) => (c.required ? checks[i] : true))
 
+  /** Upload the proof + set profile fields (docs/03 3.3). Needs a live
+   *  session, so it runs after email verification — or immediately when the
+   *  user is already signed in. */
+  async function finishOnboarding(): Promise<string | null> {
+    const draft = loadDraft()
+    if (!draft || !file) {
+      return 'Your step-1 details or the proof file are missing — start again at step 1.'
+    }
+    const { data: b } = await supabase
+      .from('barangays')
+      .select('id, is_enabled')
+      .eq('name', draft.barangay)
+      .maybeSingle()
+    if (!b?.is_enabled) {
+      return 'Please choose one of the seven Cainta barangays in step 1.'
+    }
+    const res = await completeOnboarding(
+      {
+        fullName: draft.fullName,
+        mobile: draft.mobile,
+        barangayId: b.id,
+        street: draft.street,
+        consentTerms: true,
+        consentPrivacy: true,
+        consentUpdates: checks[3],
+      },
+      file,
+    )
+    return res.ok ? null : res.error
+  }
+
   async function resendEmail() {
     if (!signUp) return
     const { error } = await signUp.verifications.sendEmailCode()
@@ -103,6 +139,24 @@ export default function OnboardingPage() {
   }
 
   async function createAccount() {
+    if (!requiredOk || !file) return
+    setPhase('loading')
+    setSubmitErr(null)
+
+    // Already has a session (signed in earlier / verify-later recovery):
+    // upload directly — no Clerk steps left.
+    if (userId && (!signUp || signUp.status === 'complete')) {
+      const onbErr = await finishOnboarding()
+      if (onbErr) {
+        setSubmitErr(onbErr)
+        setPhase('error')
+        return
+      }
+      show('Proof submitted — your account is now waiting for approval', 'olive')
+      router.push('/account-status')
+      return
+    }
+
     if (!signUp) {
       setSubmitErr(
         'We could not find your details from step 1 — go back to step 1 and try again.',
@@ -110,10 +164,7 @@ export default function OnboardingPage() {
       setPhase('error')
       return
     }
-    setPhase('loading')
-    setSubmitErr(null)
 
-    // Step-1 details (never the password) for the account metadata.
     const draft = loadDraft()
     const { error: updateErr } = await signUp.update({
       legalAccepted: true,
@@ -134,6 +185,12 @@ export default function OnboardingPage() {
     // Instance without email verification completes the sign-up right away.
     if (signUp.status === 'complete') {
       await signUp.finalize()
+      const directErr = await finishOnboarding()
+      if (directErr) {
+        setSubmitErr(directErr)
+        setPhase('error')
+        return
+      }
       show('Email verified — your account is now waiting for approval', 'olive')
       router.push('/account-status')
       return
@@ -170,7 +227,15 @@ export default function OnboardingPage() {
       show(finalizeErr.longMessage || finalizeErr.message, 'danger')
       return
     }
+    // Session exists now → upload the proof and set the profile (docs/03 3.3).
+    const onbErr = await finishOnboarding()
     setVerifyOpen(false)
+    if (onbErr) {
+      setSubmitErr(onbErr)
+      setPhase('error')
+      show(onbErr, 'danger')
+      return
+    }
     show('Email verified — your account is now waiting for approval', 'olive')
     router.push('/account-status')
   }
@@ -294,7 +359,11 @@ export default function OnboardingPage() {
                       type="file"
                       accept=".jpg,.jpeg,.png,.pdf"
                       className="sr-only"
-                      onChange={(e) => setFileName(e.target.files?.[0]?.name ?? null)}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0] ?? null
+                        setFile(f)
+                        setFileName(f?.name ?? null)
+                      }}
                     />
                     {fileName ? (
                       <div className="flex items-center gap-3 mt-3 border border-line rounded-sm px-3 py-2.5 bg-surface">
