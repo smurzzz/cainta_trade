@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   title: 'Admin dashboard — CaintaTrade',
 }
 
+export const dynamic = 'force-dynamic'
+
 type Stats = {
   kpis: {
     users: number

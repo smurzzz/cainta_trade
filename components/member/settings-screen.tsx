@@ -245,7 +245,7 @@ export function SettingsScreen({
       if (!res.ok) show(res.error, 'danger')
       else {
         show('Account deleted')
-        window.location.href = '/'
+        router.replace('/')
       }
     })
   }

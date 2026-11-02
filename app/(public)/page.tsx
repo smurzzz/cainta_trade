@@ -56,9 +56,8 @@ const SPOTS = [
   ["Sta. Lucia Mall activity area", "San Roque · meet near the main entrance"],
 ];
 
-/** Statically rendered, but refreshed every minute so the live counts and
- *  featured listings never go stale between deploys (docs/03 3.15). */
-export const revalidate = 60;
+/** Public catalog data comes from Supabase and must be fetched at request time. */
+export const dynamic = "force-dynamic";
 
 export default async function LandingPage() {
   // Real catalog: newest listings, live category/barangay facet counts, total.

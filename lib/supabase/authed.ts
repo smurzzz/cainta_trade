@@ -1,8 +1,32 @@
 'use client'
 
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+
+type ClerkGetToken = ReturnType<typeof useAuth>['getToken']
+
+class ClerkTokenProvider {
+  private getToken: ClerkGetToken
+
+  constructor(getToken: ClerkGetToken) {
+    this.getToken = getToken
+  }
+
+  update(getToken: ClerkGetToken) {
+    this.getToken = getToken
+  }
+
+  get(options: Parameters<ClerkGetToken>[0]) {
+    return this.getToken(options)
+  }
+}
+
+function useClerkTokenProvider(getToken: ClerkGetToken) {
+  const [provider] = useState(() => new ClerkTokenProvider(getToken))
+  useEffect(() => provider.update(getToken), [getToken, provider])
+  return provider
+}
 
 /** Browser client that authenticates REST requests with the Clerk `supabase`
  *  JWT template (aud/role `authenticated`). Needs Supabase **third-party auth
@@ -16,14 +40,9 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js'
  *  this client is only used behind a signed-in guard. */
 export function useSupabaseAuthedClient(): SupabaseClient | null {
   const { isLoaded, getToken } = useAuth()
-  // Clerk hands out a fresh getToken identity on re-render; keeping the client
-  // alive across renders stops the subscribe effects (and their resubscribes)
-  // from churning — which otherwise drops events during the churn window.
-  const getTokenRef = useRef(getToken)
-  getTokenRef.current = getToken
+  const tokenProvider = useClerkTokenProvider(getToken)
   return useMemo(() => {
     if (!isLoaded) return null
-    console.log('[rt-client] created', Date.now()) // TEMP-RT-DEBUG
     return createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -32,7 +51,7 @@ export function useSupabaseAuthedClient(): SupabaseClient | null {
         accessToken: async () => {
           for (let attempt = 0; attempt < 3; attempt++) {
             try {
-              const token = await getTokenRef.current({ template: 'supabase' })
+              const token = await tokenProvider.get({ template: 'supabase' })
               if (token) return token
             } catch {
               // Clerk not ready yet — fall through to backoff
@@ -43,7 +62,7 @@ export function useSupabaseAuthedClient(): SupabaseClient | null {
         },
       },
     )
-  }, [isLoaded])
+  }, [isLoaded, tokenProvider])
 }
 
 /** Pushes a FRESH `supabase` token onto the realtime socket once a channel
@@ -60,19 +79,16 @@ export function useSupabaseAuthedClient(): SupabaseClient | null {
  *  realtime's own reconnect refresh too. */
 export function usePushRealtimeAuth(supabase: SupabaseClient | null) {
   const { getToken } = useAuth()
-  const getTokenRef = useRef(getToken)
-  getTokenRef.current = getToken
+  const tokenProvider = useClerkTokenProvider(getToken)
   return useCallback(async (): Promise<boolean> => {
     if (!supabase) return false
     try {
-      const token = await getTokenRef.current({ template: 'supabase', skipCache: true })
+      const token = await tokenProvider.get({ template: 'supabase', skipCache: true })
       if (!token) return false
       await supabase.realtime.setAuth(token)
-      console.log('[rt-push] ok', Date.now()) // TEMP-RT-DEBUG
       return true
     } catch {
-      console.log('[rt-push] failed', Date.now()) // TEMP-RT-DEBUG
       return false
     }
-  }, [supabase])
+  }, [supabase, tokenProvider])
 }
