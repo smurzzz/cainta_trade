@@ -47,7 +47,12 @@ export function SignInForm() {
    *  staff → /admin, verified resident → /home) instead of always /home. */
   async function landAfterSignIn(): Promise<void> {
     const res = await resolvePostAuthPath()
-    router.push(res.ok && res.data ? res.data : '/')
+    if (!res.ok || !res.data) {
+      throw new Error(
+        'You are signed in, but we could not load your account. Please refresh and try again.',
+      )
+    }
+    router.push(res.data)
   }
 
   async function verifySecondFactor(code: string): Promise<boolean> {
@@ -71,34 +76,48 @@ export function SignInForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!signIn) return
-    setPhase('loading')
-    setGlobalMsg(null)
-    const { error } = await signIn.password({ identifier: email, password })
-    if (error) {
-      setAttempts((a) => a + 1)
-      setGlobalMsg(error.longMessage || error.message)
+    if (!signIn) {
+      setGlobalMsg('Sign-in is still loading. Please wait a moment and try again.')
       setPhase('error')
       return
     }
+    setPhase('loading')
     setGlobalMsg(null)
-    if (signIn.status === 'complete') {
-      await signIn.finalize()
-      await landAfterSignIn()
-      return
-    }
-    if (signIn.status === 'needs_second_factor') {
-      const factors = signIn.supportedSecondFactors ?? []
-      if (factors.some((f) => f.strategy === 'phone_code')) {
-        const { error: sendErr } = await signIn.mfa.sendPhoneCode()
-        if (sendErr) toastSafe(sendErr.longMessage || sendErr.message, 'danger')
+    try {
+      const { error } = await signIn.password({ identifier: email, password })
+      if (error) {
+        setAttempts((a) => a + 1)
+        setGlobalMsg(error.longMessage || error.message)
+        setPhase('error')
+        return
       }
-      setMfaCode('')
-      setDialog('mfa')
-      setPhase('default')
-      return
+      setGlobalMsg(null)
+      if (signIn.status === 'complete') {
+        await signIn.finalize()
+        await landAfterSignIn()
+        return
+      }
+      if (signIn.status === 'needs_second_factor') {
+        const factors = signIn.supportedSecondFactors ?? []
+        if (factors.some((f) => f.strategy === 'phone_code')) {
+          const { error: sendErr } = await signIn.mfa.sendPhoneCode()
+          if (sendErr) toastSafe(sendErr.longMessage || sendErr.message, 'danger')
+        }
+        setMfaCode('')
+        setDialog('mfa')
+        setPhase('default')
+        return
+      }
+      setGlobalMsg('We could not complete sign-in. Please try again or reset your password.')
+      setPhase('error')
+    } catch (error) {
+      setGlobalMsg(
+        error instanceof Error
+          ? error.message
+          : 'A connection issue prevented sign-in. Please try again.',
+      )
+      setPhase('error')
     }
-    setPhase('default')
   }
 
   async function submitMfa() {
@@ -252,10 +271,9 @@ export function SignInForm() {
       {phase === 'error' ? (
         <>
           <Notice tone="danger" icon="alert" className="mt-8 mb-5">
-            <div className="font-medium">We could not sign you in</div>
+            <div className="font-medium">We could not complete sign-in</div>
             <p className="t-small mt-1">
-              Check your details and try again. For your safety we do not say which of the two
-              was wrong.
+              Check your details and try again. If the problem continues, refresh the page.
             </p>
             {shownGlobal ? <p className="t-small mt-1">{shownGlobal}</p> : null}
           </Notice>

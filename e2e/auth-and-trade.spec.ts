@@ -84,7 +84,7 @@ test.describe('sign-up to approval (T-A1)', () => {
 })
 
 test.describe('sign-in round trip (T-A10)', () => {
-  test('sign out, fail a wrong password, then sign back in with email + password', async ({
+  test('handles a wrong password and routes pending and admin accounts after sign-in', async ({
     page,
   }) => {
     test.setTimeout(180_000)
@@ -116,7 +116,9 @@ test.describe('sign-in round trip (T-A10)', () => {
       await page.getByLabel(/^Email address/).fill(email)
       await page.getByLabel(/^Password/).fill('NotThePassword123!')
       await page.getByRole('button', { name: 'Log in', exact: true }).click()
-      await expect(page.getByText('We could not sign you in')).toBeVisible({ timeout: 30_000 })
+      await expect(page.getByText('We could not complete sign-in')).toBeVisible({
+        timeout: 30_000,
+      })
       await expect(page.getByText('failed attempt')).toBeVisible()
 
       // — right password → completes and lands by profile status —
@@ -140,6 +142,23 @@ test.describe('sign-in round trip (T-A10)', () => {
         .maybeSingle()
       expect(profile).toMatchObject({ status: 'pending' })
       expect(profile?.onboarded_at).toBeTruthy()
+
+      // staff accounts signing in through the same form land in the admin console
+      const { error: roleError } = await adminDb()
+        .from('profiles')
+        .update({ status: 'verified', role: 'admin' })
+        .eq('id', userId as string)
+      if (roleError) throw new Error(`Could not seed admin role: ${roleError.message}`)
+
+      await page.locator('button[aria-haspopup="true"]').click()
+      await page.getByRole('button', { name: 'Sign out' }).click()
+      await expect(page).toHaveURL(/\/$/, { timeout: 20_000 })
+
+      await page.goto('/sign-in')
+      await page.getByLabel(/^Email address/).fill(email)
+      await page.getByLabel(/^Password/).fill(password)
+      await page.getByRole('button', { name: 'Log in', exact: true }).click()
+      await expect(page).toHaveURL(/\/admin(?:\/)?$/, { timeout: 45_000 })
     } finally {
       if (!userId) userId = await currentClerkUserId(page, email)
       if (userId) await cleanupTestUser(userId)
