@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { useSignIn } from '@clerk/nextjs'
+import { useCallback, useEffect, useState } from 'react'
+import { useAuth, useSignIn } from '@clerk/nextjs'
 import { resolvePostAuthPath } from '@/actions/profile'
 import { Button } from '@/components/ui/button'
 import { Check, Field, Input } from '@/components/ui/field'
@@ -19,6 +19,7 @@ const ATTEMPT_WORDS = ['No', 'One', 'Two', 'Three']
 
 export function SignInForm() {
   const router = useRouter()
+  const { isLoaded: authLoaded, isSignedIn } = useAuth()
   const { signIn, errors } = useSignIn()
   const { toast, show } = useToast()
 
@@ -47,15 +48,26 @@ export function SignInForm() {
 
   /** docs/02 B7 — land by profile status/role (pending → /account-status,
    *  staff → /admin, verified resident → /home) instead of always /home. */
-  async function landAfterSignIn(): Promise<void> {
+  const landAfterSignIn = useCallback(async (): Promise<void> => {
     const res = await resolvePostAuthPath()
     if (!res.ok || !res.data) {
       throw new Error(
         'You are signed in, but we could not load your account. Please refresh and try again.',
       )
     }
-    router.push(res.data)
-  }
+    router.replace(res.data)
+  }, [router])
+
+  useEffect(() => {
+    if (authLoaded && isSignedIn) {
+      void landAfterSignIn().catch((error: unknown) => {
+        setGlobalMsg(
+          error instanceof Error ? error.message : 'Could not open your account. Please try again.',
+        )
+        setPhase('error')
+      })
+    }
+  }, [authLoaded, isSignedIn, landAfterSignIn])
 
   async function finishSignIn(): Promise<void> {
     if (!signIn) throw new Error('Sign-in is no longer available. Please refresh and try again.')
@@ -155,6 +167,13 @@ export function SignInForm() {
     try {
       const { error } = await signIn.password({ identifier: email, password })
       if (error) {
+        if (
+          error.code === 'session_exists' ||
+          /already signed in/i.test(error.longMessage || error.message)
+        ) {
+          await landAfterSignIn()
+          return
+        }
         setAttempts((a) => a + 1)
         setGlobalMsg(error.longMessage || error.message)
         setPhase('error')

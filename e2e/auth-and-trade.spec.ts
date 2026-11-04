@@ -159,6 +159,14 @@ test.describe('sign-in round trip (T-A10)', () => {
       await page.getByLabel(/^Password/).fill(password)
       await page.getByRole('button', { name: 'Log in', exact: true }).click()
       await expect(page).toHaveURL(/\/admin(?:\/)?$/, { timeout: 45_000 })
+
+      // Submitting the form with an existing session should continue to the
+      // active account, not render Clerk's "already signed in" error.
+      await page.goto('/sign-in')
+      await page.getByLabel(/^Email address/).fill(email)
+      await page.getByLabel(/^Password/).fill(password)
+      await page.getByRole('button', { name: 'Log in', exact: true }).click()
+      await expect(page).toHaveURL(/\/admin(?:\/)?$/, { timeout: 45_000 })
     } finally {
       if (!userId) userId = await currentClerkUserId(page, email)
       if (userId) await cleanupTestUser(userId)
