@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480">
+  <defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#e7edda"/><stop offset="1" stop-color="#bed0ae"/></linearGradient></defs>
+  <rect width="640" height="480" fill="url(#bg)"/><rect y="346" width="640" height="134" fill="#bc9676"/><path d="M296 323V133m0 136-79-100m79 129 94-115m-94 22 3-102" stroke="#42694e" stroke-width="13"/><path d="M286 252c-98 17-120-72-75-105 52-38 94 27 75 105m19-51c8-103 91-116 112-66 23 54-41 88-112 66m-13-83c-60-77-17-138 35-126 58 13 44 91-35 126m-15 119c-89 56-153 0-126-46 29-48 103-22 126 46m10-58c67-85 140-53 130 0-11 57-91 59-130 0" fill="#59835d" stroke="#396646" stroke-width="7"/><path d="M221 328h150l-18 99h-114z" fill="#c87554" stroke="#8c503c" stroke-width="8"/><path d="M207 328h178v25H207z" fill="#e4a47b"/><text x="32" y="52" font-family="Arial,sans-serif" font-size="18" fill="#365b3c" letter-spacing="3">GROW SOMETHING</text>
+</svg>

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480">
+  <defs><linearGradient id="bg" x2="0" y2="1"><stop stop-color="#f2dec1"/><stop offset="1" stop-color="#d0a67e"/></linearGradient><linearGradient id="wood" x2="0" y2="1"><stop stop-color="#a9673b"/><stop offset="1" stop-color="#714126"/></linearGradient></defs>
+  <rect width="640" height="480" fill="url(#bg)"/><circle cx="500" cy="92" r="52" fill="#f8efdc" opacity=".8"/><path d="M0 356h640v124H0z" fill="#bd926c"/>
+  <path d="M130 198h380v35H130z" rx="8" fill="url(#wood)"/><path d="M165 233h25v145h-25zm286 0h25v145h-25z" fill="#714126"/><path d="M174 162h102v24H174zm190 0h102v24H364z" fill="#96603b"/><path d="M185 186v93m87-93v93m102-93v93m87-93v93" stroke="#714126" stroke-width="12"/><ellipse cx="320" cy="424" rx="230" ry="18" fill="#7c5a43" opacity=".2"/>
+  <text x="32" y="52" font-family="Arial,sans-serif" font-size="18" fill="#533b2c" letter-spacing="3">CAINTA HOME FINDS</text>
+</svg>

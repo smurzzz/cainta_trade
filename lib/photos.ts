@@ -3,6 +3,7 @@
  *  pulling in the `server-only` module graph. */
 export function photoUrl(path: string | null | undefined) {
   if (!path) return null
+  if (path.startsWith('/')) return path
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
   return `${base}/storage/v1/object/public/listing-photos/${path}`
 }
