@@ -21,7 +21,7 @@ Global states for every list/form: loading skeleton, empty, error (with referenc
 - Components: search bar, category/condition/barangay/status filters, popular chips, sort, grid/list toggle, item card (photo, status badge, category, barangay, title, looking-for, owner, age, wishlist heart), pagination
 - API: `GET /items?q&category&condition&barangay&status&sort&page`
 - States: loading, empty, no results, error
-- Notes: "show exchanged too" toggle; guests see a login CTA instead of heart actions. Demo seed migration `026_demo_catalog.sql` provides 10 sample listings with local illustrations under `public/assets/demo-items/`; run `supabase/seed_demo_user.sql` manually after the demo account signs up to pre-verify that single account.
+- Notes: "show exchanged too" toggle; guests see a login CTA instead of heart actions. Demo seed migration `026_demo_catalog.sql` provides 10 sample listings with local illustrations under `public/assets/demo-items/`; run `supabase/seed_demo_user.sql` manually with the account's Clerk user ID to create or pre-verify that single resident profile.
 
 ### A3 Item detail (guest) `/items/:id`
 - Access: Guest
