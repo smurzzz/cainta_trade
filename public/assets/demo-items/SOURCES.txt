@@ -1,0 +1,13 @@
+Demo catalog photos are sourced from Pexels and used under the Pexels license:
+https://www.pexels.com/license/
+
+dining-table.jpg: https://www.pexels.com/photo/2995012/
+desk-fan.jpg: https://www.pexels.com/photo/3675622/
+kettle-toaster.jpg: https://www.pexels.com/photo/12974474/
+storybooks.jpg: https://www.pexels.com/photo/7946399/
+city-bike.jpg: https://www.pexels.com/photo/11150214/
+potted-monstera.jpg: https://www.pexels.com/photo/15232403/
+ceramic-cookware.jpg: https://www.pexels.com/photo/12156176/
+desk-lamp.jpg: https://www.pexels.com/photo/7439756/
+backpack.jpg: https://www.pexels.com/photo/845857/
+side-table.jpg: https://www.pexels.com/photo/14063637/

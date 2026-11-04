@@ -36,8 +36,9 @@ Create the folders listed in `01_PROJECT_OVERVIEW.md` (app groups, `lib/`, `comp
 npx supabase login
 npx supabase init
 npx supabase link --project-ref <your-project-ref>
-npx supabase db push          # applies supabase/migrations/*.sql
+npx supabase db push --include-all  # applies pending migrations in order
 ```
+Run this from the repository root. Do not run migrations `026` or `027` by themselves in the SQL editor: they depend on tables created by migrations `001`–`025`.
 4. Run `supabase/seed.sql` from the SQL editor (barangays, categories, meetup spots).
 5. Confirm the buckets exist: `listing-photos` (public), `residency-docs`, `chat-photos`, `report-evidence` (private).
 6. Confirm RLS is **enabled** on every table (Table editor shows a lock/RLS badge).
@@ -167,6 +168,7 @@ npx playwright install && npx playwright test
 | Supabase returns empty data for signed-in users | Clerk not added as third-party auth, or integration not activated in Clerk |
 | `supabase.auth.*` throws | Expected when `accessToken` is used; remove those calls |
 | Profile row not created | Webhook URL, signing secret or tunnel wrong; check Clerk webhook logs |
+| `relation "items"` or `relation "item_photos" does not exist` | The base migrations have not been applied. Link the project and run `npx supabase db push --include-all` from the repository root; this applies the pending migrations in order. |
 | Redirect loop after sign-up | Middleware protecting `/onboarding` before profile exists; allow signed-in users there |
 | Upload to private bucket fails from browser | Residency uploads must go through a server action using the service role |
 | Cron returns 401 | Missing `CRON_SECRET` header or env var |
