@@ -50,8 +50,8 @@ Global states for every list/form: loading skeleton, empty, error (with referenc
 
 ### B7 Login `/sign-in`
 - Components: custom mockup form `components/auth/sign-in-form.tsx` on headless `useSignIn()` (email + password, show-password toggle, keep-me-signed-in, forgot link → `/recovery`), pending-approval hint, weekly stats panel, safety notes
-- States: default / loading / error / code panels plus the two-factor dialog and mobile-login dialog, matching the mockup's `data-panel` variants
-- Notes: admins use the same form; after sign-in redirect by profile status/role (`/home`, `/account-status`, `/admin`). Mobile-number sign-in and 2FA are wired but need the strategies enabled on the Clerk instance (Tier 3 / plan check)
+- States: default / loading / error / code panels plus the two-factor dialog and mobile-login dialog, matching the mockup's `data-panel` variants; second-factor flow handles Clerk MFA and Device Trust challenges using enabled SMS/email codes, TOTP, or backup codes
+- Notes: admins use the same form; after sign-in redirect by profile status/role (`/home`, `/account-status`, `/admin`). Mobile-number sign-in and verification factors require the corresponding strategies to be enabled on the Clerk instance
 
 ### B8 Recovery `/recovery` (custom mockup panels, headless Clerk)
 - `components/auth/recovery-flow.tsx`: segmented Forgot / Reset / Email verified panels matching b8-recovery. Forgot → `signIn.create({identifier})` + `resetPasswordEmailCode.sendCode()`; Reset → `submitPassword()` when a live reset session exists, otherwise the mockup's expired-link notice with "Request a fresh link"

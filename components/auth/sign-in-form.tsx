@@ -13,6 +13,7 @@ import { Notice, Skeleton } from '@/components/ui/feedback'
 import { Toast, useToast, type ToastKind } from '@/components/ui/toast'
 
 type Phase = 'default' | 'loading' | 'error' | 'code'
+type SecondFactorStrategy = 'phone_code' | 'email_code' | 'totp' | 'backup_code'
 
 const ATTEMPT_WORDS = ['No', 'One', 'Two', 'Three']
 
@@ -27,6 +28,7 @@ export function SignInForm() {
   const [password, setPassword] = useState('')
   const [globalMsg, setGlobalMsg] = useState<string | null>(null)
   const [attempts, setAttempts] = useState(0)
+  const [mfaStrategy, setMfaStrategy] = useState<SecondFactorStrategy>('phone_code')
 
   // mobile dialog
   const [mobile, setMobile] = useState('')
@@ -55,21 +57,88 @@ export function SignInForm() {
     router.push(res.data)
   }
 
+  async function finishSignIn(): Promise<void> {
+    if (!signIn) throw new Error('Sign-in is no longer available. Please refresh and try again.')
+    const { error } = await signIn.finalize()
+    if (error) throw new Error(error.longMessage || error.message)
+    await landAfterSignIn()
+  }
+
+  async function beginSecondFactor(): Promise<void> {
+    if (!signIn) return
+    const factors = signIn.supportedSecondFactors
+    const priorities: SecondFactorStrategy[] =
+      signIn.status === 'needs_client_trust'
+        ? ['phone_code', 'email_code']
+        : ['phone_code', 'email_code', 'totp', 'backup_code']
+    const strategy = priorities.find((strategy) =>
+      factors.some((candidate) => candidate.strategy === strategy),
+    )
+
+    if (!strategy) {
+      setGlobalMsg(
+        'Your account requires a verification method this sign-in page cannot complete. Please contact support.',
+      )
+      setPhase('error')
+      return
+    }
+
+    setMfaStrategy(strategy)
+    if (strategy === 'phone_code' || strategy === 'email_code') {
+      const { error } =
+        strategy === 'phone_code'
+          ? await signIn.mfa.sendPhoneCode()
+          : await signIn.mfa.sendEmailCode()
+      if (error) {
+        setGlobalMsg(error.longMessage || error.message)
+        setPhase('error')
+        return
+      }
+    }
+
+    setMfaCode('')
+    setDialog('mfa')
+    setPhase('default')
+  }
+
+  async function resendMfaCode(): Promise<void> {
+    if (!signIn) {
+      toastSafe('Sign-in is still loading. Please refresh and try again.', 'danger')
+      return
+    }
+    if (mfaStrategy !== 'phone_code' && mfaStrategy !== 'email_code') return
+    const { error } =
+      mfaStrategy === 'phone_code'
+        ? await signIn.mfa.sendPhoneCode()
+        : await signIn.mfa.sendEmailCode()
+    if (error) toastSafe(error.longMessage || error.message, 'danger')
+    else toastSafe('Code sent again')
+  }
+
   async function verifySecondFactor(code: string): Promise<boolean> {
     if (!signIn) return false
-    const factors = signIn.supportedSecondFactors ?? []
-    const wantsPhone = factors.some((f) => f.strategy === 'phone_code')
-    const { error } = wantsPhone
-      ? await signIn.mfa.verifyPhoneCode({ code })
-      : await signIn.mfa.verifyTOTP({ code })
-    if (error) {
-      toastSafe(error.longMessage || error.message, 'danger')
-      return false
-    }
-    if (signIn.status === 'complete') {
-      await signIn.finalize()
-      await landAfterSignIn()
-      return true
+    try {
+      const { error } =
+        mfaStrategy === 'phone_code'
+          ? await signIn.mfa.verifyPhoneCode({ code })
+          : mfaStrategy === 'email_code'
+            ? await signIn.mfa.verifyEmailCode({ code })
+            : mfaStrategy === 'backup_code'
+              ? await signIn.mfa.verifyBackupCode({ code })
+              : await signIn.mfa.verifyTOTP({ code })
+      if (error) {
+        toastSafe(error.longMessage || error.message, 'danger')
+        return false
+      }
+      if (signIn.status === 'complete') {
+        await finishSignIn()
+        return true
+      }
+    } catch (error) {
+      toastSafe(
+        error instanceof Error ? error.message : 'We could not verify that code. Please try again.',
+        'danger',
+      )
     }
     return false
   }
@@ -93,22 +162,21 @@ export function SignInForm() {
       }
       setGlobalMsg(null)
       if (signIn.status === 'complete') {
-        await signIn.finalize()
-        await landAfterSignIn()
+        await finishSignIn()
         return
       }
-      if (signIn.status === 'needs_second_factor') {
-        const factors = signIn.supportedSecondFactors ?? []
-        if (factors.some((f) => f.strategy === 'phone_code')) {
-          const { error: sendErr } = await signIn.mfa.sendPhoneCode()
-          if (sendErr) toastSafe(sendErr.longMessage || sendErr.message, 'danger')
-        }
-        setMfaCode('')
-        setDialog('mfa')
-        setPhase('default')
+      if (
+        signIn.status === 'needs_second_factor' ||
+        signIn.status === 'needs_client_trust'
+      ) {
+        await beginSecondFactor()
         return
       }
-      setGlobalMsg('We could not complete sign-in. Please try again or reset your password.')
+      setGlobalMsg(
+        signIn.status === 'needs_new_password'
+          ? 'Your account requires a new password. Use “Forgot password?” to reset it before signing in.'
+          : `Sign-in needs another step (${signIn.status}) that this page cannot complete. Please contact support.`,
+      )
       setPhase('error')
     } catch (error) {
       setGlobalMsg(
@@ -131,22 +199,28 @@ export function SignInForm() {
 
   async function submitMobile() {
     if (!signIn) return
-    if (mobileCode.trim().length < 6) {
-      const digits = mobile.replace(/\D/g, '')
-      const { error } = await signIn.phoneCode.sendCode({ phoneNumber: `+63${digits}` })
-      if (error) toastSafe(error.longMessage || error.message, 'danger')
-      else toastSafe('Code sent — enter the 6-digit code')
-      return
-    }
-    const { error } = await signIn.phoneCode.verifyCode({ code: mobileCode.trim() })
-    if (error) {
-      toastSafe(error.longMessage || error.message, 'danger')
-      return
-    }
-    if (signIn.status === 'complete') {
-      await signIn.finalize()
-      setDialog(null)
-      await landAfterSignIn()
+    try {
+      if (mobileCode.trim().length < 6) {
+        const digits = mobile.replace(/\D/g, '')
+        const { error } = await signIn.phoneCode.sendCode({ phoneNumber: `+63${digits}` })
+        if (error) toastSafe(error.longMessage || error.message, 'danger')
+        else toastSafe('Code sent — enter the 6-digit code')
+        return
+      }
+      const { error } = await signIn.phoneCode.verifyCode({ code: mobileCode.trim() })
+      if (error) {
+        toastSafe(error.longMessage || error.message, 'danger')
+        return
+      }
+      if (signIn.status === 'complete') {
+        setDialog(null)
+        await finishSignIn()
+      }
+    } catch (error) {
+      toastSafe(
+        error instanceof Error ? error.message : 'We could not verify that code. Please try again.',
+        'danger',
+      )
     }
   }
 
@@ -162,6 +236,31 @@ export function SignInForm() {
   }
 
   const remaining = Math.max(0, 3 - attempts)
+  const mfaFactor = signIn?.supportedSecondFactors.find(
+    (factor) => factor.strategy === mfaStrategy,
+  )
+  const mfaMethod =
+    mfaStrategy === 'phone_code'
+      ? 'text message'
+      : mfaStrategy === 'email_code'
+        ? 'email'
+        : mfaStrategy === 'backup_code'
+          ? 'backup code'
+          : 'authenticator app'
+  const mfaDestination =
+    (mfaFactor?.strategy === 'phone_code' || mfaFactor?.strategy === 'email_code') &&
+    mfaFactor.safeIdentifier
+      ? ` sent to ${mfaFactor.safeIdentifier}`
+      : ''
+  const mfaInputLabel = mfaStrategy === 'backup_code' ? 'Backup code' : 'Authentication code'
+  const mfaInputHint =
+    mfaStrategy === 'backup_code'
+      ? 'Enter one of the backup codes you saved when you enabled two-factor authentication.'
+      : `Enter the verification code ${mfaDestination}.`
+  const normalizeMfaCode = (value: string) =>
+    mfaStrategy === 'backup_code'
+      ? value.replace(/[^a-z0-9-]/gi, '').toUpperCase()
+      : value.replace(/[^0-9]/g, '')
 
   return (
     <>
@@ -318,11 +417,10 @@ export function SignInForm() {
         <>
           <Notice tone="brass" icon="shield" className="mt-8 mb-5">
             <div className="font-medium">
-              Two-factor authentication is on for this account
+              Verify this sign-in
             </div>
             <p className="t-small mt-1">
-              We sent a 6-digit code to +63 917 448 2210. Enter it to finish signing in — it
-              expires in 10 minutes.
+              Enter the {mfaMethod}{mfaDestination} to finish signing in.
             </p>
           </Notice>
           <form
@@ -333,33 +431,45 @@ export function SignInForm() {
             className="border border-line rounded-md bg-surface p-6 flex flex-col gap-5"
           >
             <Field
-              label="Authentication code"
+              label={mfaInputLabel}
               hint={
-                <>
-                  Didn’t get the text?{' '}
-                  <button
-                    type="button"
-                    className="underline underline-offset-[3px] hover:text-accent"
-                    onClick={() => toastSafe('Code sent again')}
-                  >
-                    Resend the code
-                  </button>{' '}
-                  ·{' '}
-                  <button
-                    type="button"
-                    className="underline underline-offset-[3px] hover:text-accent"
-                    onClick={() =>
-                      toastSafe('Enter one of the 10 backup codes from when you set up two-factor')
-                    }
-                  >
-                    Use a backup code
-                  </button>
-                </>
+                mfaStrategy === 'phone_code' || mfaStrategy === 'email_code' ? (
+                  <>
+                    Didn’t get the {mfaMethod}?{' '}
+                    <button
+                      type="button"
+                      className="underline underline-offset-[3px] hover:text-accent"
+                      onClick={resendMfaCode}
+                    >
+                      Resend the code
+                    </button>{' '}
+                    {signIn?.supportedSecondFactors.some(
+                      (factor) => factor.strategy === 'backup_code',
+                    ) ? (
+                      <>
+                        ·{' '}
+                        <button
+                          type="button"
+                          className="underline underline-offset-[3px] hover:text-accent"
+                          onClick={() => {
+                            setMfaStrategy('backup_code')
+                            setMfaCode('')
+                          }}
+                        >
+                          Use a backup code
+                        </button>
+                      </>
+                    ) : null}
+                  </>
+                ) : mfaInputHint
               }
             >
               <CodeInput
+                inputMode={mfaStrategy === 'backup_code' ? 'text' : 'numeric'}
+                maxLength={mfaStrategy === 'backup_code' ? 20 : 6}
+                placeholder={mfaStrategy === 'backup_code' ? 'Enter backup code' : '6-digit code'}
                 value={mfaCode}
-                onChange={(e) => setMfaCode(e.target.value.replace(/[^0-9]/g, ''))}
+                onChange={(e) => setMfaCode(normalizeMfaCode(e.target.value))}
               />
             </Field>
             <Button type="submit" size="lg" block>
@@ -383,7 +493,7 @@ export function SignInForm() {
       {dialog === 'mfa' ? (
         <Dialog
           title="Two-factor authentication"
-          blurb="Enter the 6-digit code we texted to +63 917 448 2210. It expires in 10 minutes."
+          blurb={`Enter the verification code${mfaDestination}.`}
           tone="accent"
           icon="shield"
           showClose={false}
@@ -400,12 +510,15 @@ export function SignInForm() {
           }
         >
           <Field
-            label="Authentication code"
-            hint="Didn’t get the text? Resend in 00:45, or use one of your backup codes."
+            label={mfaInputLabel}
+            hint={mfaInputHint}
           >
             <CodeInput
+              inputMode={mfaStrategy === 'backup_code' ? 'text' : 'numeric'}
+              maxLength={mfaStrategy === 'backup_code' ? 20 : 6}
+              placeholder={mfaStrategy === 'backup_code' ? 'Enter backup code' : '6-digit code'}
               value={mfaCode}
-              onChange={(e) => setMfaCode(e.target.value.replace(/[^0-9]/g, ''))}
+              onChange={(e) => setMfaCode(normalizeMfaCode(e.target.value))}
             />
           </Field>
         </Dialog>
